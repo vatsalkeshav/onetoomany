@@ -8,7 +8,8 @@ use std::error::Error;
 use std::{io, thread};
 use std::sync::mpsc;
 use invaders::{frame, render};
-use invaders::frame::new_frame;
+use invaders::frame::{new_frame, Drawable};
+use invaders::player::Player;
 
 fn main() -> Result<(), Box<dyn Error>> {
 
@@ -46,6 +47,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    let mut player = Player::new();
+
     // 'gameloop: loop {
     //     // input
     //     while event::poll(Duration::default())? {
@@ -65,29 +68,32 @@ fn main() -> Result<(), Box<dyn Error>> {
     // }
     'gameloop: loop {
         // per-frame init
-        let curr_frame = new_frame();
+        let mut curr_frame = new_frame();
 
         //input
         while event::poll(Duration::default())? {
             if let Event::Key(key_event_mf) = event::read()? {
                 match key_event_mf.code {
+                    KeyCode::Left => player.move_left(),
+                    KeyCode::Right => player.move_right(),
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }
 
         // draw and render
+        player.draw(&mut curr_frame);
         let _ = render_tx.send(curr_frame); // after startup, for some time, there'd be no receiver available. This `let` is to ignore that thing to avoid a crash
         thread::sleep(Duration::from_millis(1));
     }
 
     // Cleanup
     // join the threads
-    drop(render_tx); // render_rx auto shuts down 
+    drop(render_tx); // render_rx auto shuts down
     render_handle.join().unwrap();
 
     audio.wait();
