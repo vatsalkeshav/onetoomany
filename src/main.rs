@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -48,6 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let mut player = Player::new();
+    let mut instant = Instant::now();
 
     // 'gameloop: loop {
     //     // input
@@ -68,6 +69,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // }
     'gameloop: loop {
         // per-frame init
+        let delta = instant.elapsed();
+        instant = Instant::now();
         let mut curr_frame = new_frame();
 
         //input
@@ -76,6 +79,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match key_event_mf.code {
                     KeyCode::Left => player.move_left(),
                     KeyCode::Right => player.move_right(),
+                    KeyCode::Char(' ') | KeyCode::Enter => {
+                        if player.shoot_successful() {
+                            audio.play("pew");
+                        }
+                    }
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
@@ -85,8 +93,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
+        // Updates - timer etc
+        player.update(delta);
+
         // draw and render
-        player.draw(&mut curr_frame);
+        player.draw(&mut curr_frame); // draw player before rendering anything else
         let _ = render_tx.send(curr_frame); // after startup, for some time, there'd be no receiver available. This `let` is to ignore that thing to avoid a crash
         thread::sleep(Duration::from_millis(1));
     }
