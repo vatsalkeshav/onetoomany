@@ -3,6 +3,7 @@ use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{ExecutableCommand, event, terminal};
+use invaders::invaders::Invaders;
 use rusty_audio::Audio;
 use std::error::Error;
 use std::{io, thread};
@@ -49,6 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut player = Player::new();
     let mut instant = Instant::now();
+    let mut invaders = Invaders::new();
 
     // 'gameloop: loop {
     //     // input
@@ -95,9 +97,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Updates - timer etc
         player.update(delta);
+        if invaders.update(delta) {
+            audio.play("move")
+        }
 
         // draw and render
         player.draw(&mut curr_frame); // draw player before rendering anything else
+        invaders.draw(&mut curr_frame); // draw invaders before rendering anything else
         let _ = render_tx.send(curr_frame); // after startup, for some time, there'd be no receiver available. This `let` is to ignore that thing to avoid a crash
         thread::sleep(Duration::from_millis(1));
     }
