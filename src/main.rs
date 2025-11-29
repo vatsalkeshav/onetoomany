@@ -1,19 +1,18 @@
-use std::time::{Duration, Instant};
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{ExecutableCommand, event, terminal};
+use invaders::frame::{Drawable, new_frame};
 use invaders::invaders::Invaders;
+use invaders::player::Player;
+use invaders::{frame, render};
 use rusty_audio::Audio;
 use std::error::Error;
-use std::{io, thread};
 use std::sync::mpsc;
-use invaders::{frame, render};
-use invaders::frame::{new_frame, Drawable};
-use invaders::player::Player;
+use std::time::{Duration, Instant};
+use std::{io, thread};
 
 fn main() -> Result<(), Box<dyn Error>> {
-
     // audio
     let mut audio = Audio::new();
     audio.add("explode", "original/explode.wav");
@@ -89,8 +88,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
@@ -100,12 +99,25 @@ fn main() -> Result<(), Box<dyn Error>> {
         if invaders.update(delta) {
             audio.play("move")
         }
+        if player.detect_hits(&mut invaders) {
+            audio.play("explode");
+        }
 
         // draw and render
         player.draw(&mut curr_frame); // draw player before rendering anything else
         invaders.draw(&mut curr_frame); // draw invaders before rendering anything else
         let _ = render_tx.send(curr_frame); // after startup, for some time, there'd be no receiver available. This `let` is to ignore that thing to avoid a crash
         thread::sleep(Duration::from_millis(1));
+
+        // win or lose?
+        if invaders.all_killed() {
+            audio.play("win");
+            break 'gameloop;
+        }
+        if invaders.reached_bottom() {
+            audio.play("lose");
+            break 'gameloop;
+        }
     }
 
     // Cleanup
@@ -117,6 +129,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     stdout.execute(Show)?;
     stdout.execute(LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
-    
+
     Ok(())
 }
